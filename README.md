@@ -63,7 +63,12 @@ l'intégration : avertissement avant coupure, anti‑essais du clavier, veille, 
 ## Mise à jour
 
 HACS signale les nouvelles versions de Zapette (avec leurs notes) : **Mettre à jour**, puis
-redémarrer Home Assistant. Le paramétrage et l'historique sont conservés.
+**redémarrer Home Assistant** (la nouvelle version n'est chargée qu'au redémarrage). Le paramétrage et
+l'historique sont conservés.
+
+Dans la liste de HACS, Zapette apparaît avec une icône générique : HACS prend les icônes du dépôt
+`home-assistant/brands`, où Zapette n'est pas inscrite ; l'icône de Zapette s'affiche dans Home
+Assistant.
 
 ## Bon à savoir
 
