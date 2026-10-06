@@ -1,0 +1,30 @@
+# Crée la release GitHub d'une version poussée par la publication automatique (tag annoté vX.Y.Z).
+# HACS propose les 5 dernières releases ; les notes sont le message du tag.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Créer la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG déjà présente."
+            exit 0
+          fi
+          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+          git tag -l --format='%(contents)' "$TAG" > notes.md
+          gh release create "$TAG" --verify-tag --title "Zapette ${TAG#v}" --notes-file notes.md

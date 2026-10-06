@@ -1,0 +1,593 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Zapette",
+        "description": "A Zapette instance controls one TV. The parent code gives unlimited access.",
+        "data": {
+          "tv_name": "TV name",
+          "parent_name": "Parent name",
+          "code": "Parent code",
+          "code_confirm": "Confirm code"
+        }
+      },
+      "plug": {
+        "title": "TV plug",
+        "description": "Choose the Zigbee plug that powers the TV (switch entity exposed by Zigbee2MQTT) and, if available, its power sensor.",
+        "data": {
+          "plug_entity": "Plug",
+          "power_entity": "Power sensor (optional)"
+        },
+        "data_description": {
+          "plug_entity": "Zapette keeps it off unless allowed.",
+          "power_entity": "Used to detect when the TV is put on standby with the remote."
+        }
+      },
+      "keypad": {
+        "title": "Keypad",
+        "description": "Choose the Zigbee2MQTT keypad near the TV, or type its topic (`zigbee2mqtt/KEYPAD_NAME`). Leave empty for no keypad: codes can still be sent with the `zapette.submit_code` action.",
+        "data": {
+          "keypad_topic": "Keypad",
+          "test_keypad": "Test the keypad"
+        },
+        "data_description": {
+          "keypad_topic": "Only devices that send a typed code (`action_code`) are listed.",
+          "test_keypad": "Type any code on the keypad to check it is received. The code is neither shown nor stored, and the TV is not turned on."
+        }
+      },
+      "keypad_test_ok": {
+        "title": "Keypad received",
+        "description": "A code was received from {topic} (key: {key}). It was not checked, shown or stored.",
+        "menu_options": {
+          "keypad_finish": "Continue",
+          "keypad_test": "Test again",
+          "keypad": "Choose another keypad"
+        }
+      },
+      "keypad_test_timeout": {
+        "title": "Nothing received",
+        "description": "No code was received from {topic} within {seconds} s. Check the keypad name in Zigbee2MQTT and that it is awake (press a key), then try again.",
+        "menu_options": {
+          "keypad_test": "Test again",
+          "keypad_finish": "Continue anyway",
+          "keypad": "Choose another keypad"
+        }
+      },
+      "keypad_test_no_mqtt": {
+        "title": "MQTT unavailable",
+        "description": "The MQTT integration is not configured or not connected: the keypad cannot be tested now.",
+        "menu_options": {
+          "keypad_test": "Test again",
+          "keypad_finish": "Continue anyway",
+          "keypad": "Choose another keypad"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure {tv_name}",
+        "description": "Children, codes and settings are kept. Nothing switches the TV on or off.",
+        "menu_options": {
+          "reconfigure_plug": "Plug and power sensor",
+          "keypad": "Keypad"
+        }
+      },
+      "reconfigure_plug": {
+        "title": "Plug of {tv_name}",
+        "description": "Children, codes and settings are kept. Changing the plug does not switch either plug.",
+        "data": {
+          "plug_entity": "Plug",
+          "power_entity": "Power sensor (optional)"
+        }
+      }
+    },
+    "error": {
+      "name_invalid": "The name must have 1 to 30 characters (letters, digits, spaces, - and ').",
+      "already_configured": "A child already has this name.",
+      "code_not_digits": "The code must contain digits only.",
+      "code_length": "The code must have 4 to 8 digits.",
+      "code_mismatch": "The two codes do not match.",
+      "code_too_simple": "Code too simple (repeated digits or sequence). Choose another one.",
+      "code_in_use": "This code is already in use. Choose another one.",
+      "quota_range": "The quota must be between 0 and 24 hours.",
+      "quota_step": "The quota must be a multiple of 5 minutes.",
+      "no_day_selected": "Select at least one day.",
+      "slot_incomplete": "Enter both start and end of the time slot.",
+      "slot_order": "The end must be after the start (00:00 = midnight).",
+      "slot_too_short": "A time slot must last at least 5 minutes.",
+      "slot_overlap": "Time slots overlap.",
+      "slot_conflict": "Uncheck “No time slot” or clear the time slots.",
+      "invalid_data": "This child's settings cannot be read.",
+      "plug_in_use": "This plug is already used by another Zapette instance.",
+      "keypad_in_use": "This keypad is already used by another Zapette instance.",
+      "keypad_topic_invalid": "Invalid topic: enter `zigbee2mqtt/KEYPAD_NAME` (no `+`, `#` or `/set`).",
+      "value_range": "Value out of range.",
+      "value_invalid": "Invalid value.",
+      "tv_name_in_use": "Another Zapette TV already has this name.",
+      "plug_not_found": "Choose an existing switch.",
+      "power_not_found": "Choose an existing power sensor."
+    },
+    "abort": {
+      "reconfigure_successful": "Saved."
+    },
+    "progress": {
+      "keypad_test": "Type any code on the keypad {topic} and confirm it (waiting up to {seconds} s)."
+    }
+  },
+  "config_subentries": {
+    "child": {
+      "entry_type": "Child",
+      "initiate_flow": {
+        "user": "Add child",
+        "reconfigure": "Reconfigure"
+      },
+      "step": {
+        "identity": {
+          "title": "Child",
+          "data": {
+            "name": "First name",
+            "icon": "Icon",
+            "enabled": "Enabled"
+          },
+          "data_description": {
+            "enabled": "A disabled child cannot turn the TV on."
+          }
+        },
+        "code": {
+          "title": "Code for {name}",
+          "description": "4 to 8 digits. Codes that are too simple (1234, 0000…) are refused.",
+          "data": {
+            "code": "Code",
+            "code_confirm": "Confirm code"
+          }
+        },
+        "template": {
+          "title": "Rules for {name}",
+          "description": "Starting point for quotas and time slots; editable later via “Reconfigure”.",
+          "data": {
+            "template": "Template"
+          }
+        },
+        "summary": {
+          "title": "Summary",
+          "description": "{summary}"
+        },
+        "menu": {
+          "title": "{name}",
+          "description": "{summary}",
+          "menu_options": {
+            "identity": "Name, icon, enabled",
+            "code": "Change code",
+            "quota_days": "Daily quotas",
+            "slot_days": "Time slots",
+            "copy": "Copy rules from another child",
+            "save": "Save and exit"
+          }
+        },
+        "quota_days": {
+          "title": "Quotas: days to edit",
+          "description": "{summary}",
+          "data": {
+            "days": "Days"
+          }
+        },
+        "quota": {
+          "title": "Quota",
+          "description": "Quota for: {days}",
+          "data": {
+            "quota": "Duration per day",
+            "no_tv": "No TV on these days"
+          }
+        },
+        "slot_days": {
+          "title": "Time slots: days to edit",
+          "description": "{summary}",
+          "data": {
+            "days": "Days"
+          }
+        },
+        "slots": {
+          "title": "Time slots",
+          "description": "Time slots for: {days}. End at 00:00 = midnight. Leave unused slots empty.",
+          "data": {
+            "slot_1_start": "Slot 1 – start",
+            "slot_1_end": "Slot 1 – end",
+            "slot_2_start": "Slot 2 – start",
+            "slot_2_end": "Slot 2 – end",
+            "slot_3_start": "Slot 3 – start",
+            "slot_3_end": "Slot 3 – end",
+            "slot_4_start": "Slot 4 – start",
+            "slot_4_end": "Slot 4 – end",
+            "no_slot": "No time slot (TV forbidden on these days)"
+          }
+        },
+        "copy": {
+          "title": "Copy rules",
+          "data": {
+            "source": "Source child",
+            "copy_quotas": "Copy quotas",
+            "copy_slots": "Copy time slots"
+          }
+        }
+      },
+      "error": {
+        "name_invalid": "The name must have 1 to 30 characters (letters, digits, spaces, - and ').",
+        "already_configured": "A child already has this name.",
+        "code_not_digits": "The code must contain digits only.",
+        "code_length": "The code must have 4 to 8 digits.",
+        "code_mismatch": "The two codes do not match.",
+        "code_too_simple": "Code too simple (repeated digits or sequence). Choose another one.",
+        "code_in_use": "This code is already in use. Choose another one.",
+        "quota_range": "The quota must be between 0 and 24 hours.",
+        "quota_step": "The quota must be a multiple of 5 minutes.",
+        "no_day_selected": "Select at least one day.",
+        "slot_incomplete": "Enter both start and end of the time slot.",
+        "slot_order": "The end must be after the start (00:00 = midnight).",
+        "slot_too_short": "A time slot must last at least 5 minutes.",
+        "slot_overlap": "Time slots overlap.",
+        "slot_conflict": "Uncheck “No time slot” or clear the time slots.",
+        "invalid_data": "This child's settings cannot be read."
+      },
+      "abort": {
+        "reconfigure_successful": "Changes saved.",
+        "invalid_data": "This child's settings cannot be read."
+      }
+    }
+  },
+  "selector": {
+    "days": {
+      "options": {
+        "all": "Every day",
+        "weekdays": "Monday to Friday",
+        "weekend": "Saturday and Sunday",
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday",
+        "sun": "Sunday"
+      }
+    },
+    "template": {
+      "options": {
+        "default": "Default (1 h on weekdays, 2 h Wednesday and weekend)",
+        "empty": "No rules"
+      }
+    },
+    "off_key": {
+      "options": {
+        "none": "None",
+        "arm_all_zones": "Arm all zones (padlock)",
+        "arm_day_zones": "Arm day zones",
+        "arm_night_zones": "Arm night zones",
+        "disarm": "Disarm"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "quota_today": {
+        "name": "Today's quota"
+      },
+      "power": {
+        "name": "Power"
+      },
+      "last_outage": {
+        "name": "Last plug outage"
+      },
+      "last_denied": {
+        "name": "Last refusal",
+        "state": {
+          "locked_out": "Keypad locked",
+          "invalid_code": "Unknown code",
+          "control_inactive": "Control suspended",
+          "plug_unavailable": "Plug unreachable",
+          "profile_blocked": "Profile disabled",
+          "outside_schedule": "Outside allowed hours",
+          "quota_exhausted": "Quota used up",
+          "error": "Internal error",
+          "tv_in_use": "TV in use"
+        }
+      },
+      "last_granted": {
+        "name": "Last access"
+      },
+      "keypad_battery": {
+        "name": "Keypad battery"
+      },
+      "current_user": {
+        "name": "Current user",
+        "state": {
+          "none": "None"
+        }
+      },
+      "planned_end": {
+        "name": "Planned cut-off"
+      },
+      "consumed_today": {
+        "name": "Time watched today"
+      },
+      "remaining_today": {
+        "name": "Time left today"
+      },
+      "next_slot": {
+        "name": "Next allowed slot"
+      }
+    },
+    "binary_sensor": {
+      "tv_powered": {
+        "name": "TV powered"
+      },
+      "desired_power": {
+        "name": "Desired power"
+      },
+      "plug_reachable": {
+        "name": "Plug reachable"
+      },
+      "plug_problem": {
+        "name": "Plug problem"
+      },
+      "standby": {
+        "name": "Standby"
+      },
+      "keypad_locked": {
+        "name": "Keypad locked"
+      },
+      "keypad_available": {
+        "name": "Keypad reachable"
+      },
+      "session_active": {
+        "name": "Session running"
+      },
+      "in_session": {
+        "name": "In session"
+      },
+      "allowed_now": {
+        "name": "Allowed now"
+      }
+    },
+    "switch": {
+      "control_active": {
+        "name": "Control active"
+      }
+    },
+    "button": {
+      "turn_on_tv": {
+        "name": "Turn TV on"
+      },
+      "turn_off_tv": {
+        "name": "Turn TV off"
+      },
+      "stop_session": {
+        "name": "Stop session"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Settings",
+        "description": "Saved parents: {parents}\n\nChanges are applied only after “Save and exit”.",
+        "menu_options": {
+          "add_parent": "Add a parent code",
+          "edit_parent": "Edit a parent",
+          "delete_parent": "Delete a parent",
+          "plug_settings": "Plug settings",
+          "keypad_settings": "Keypad settings",
+          "session_settings": "Session settings",
+          "save": "Save and exit"
+        }
+      },
+      "edit_parent": {
+        "title": "Edit a parent",
+        "data": {
+          "parent": "Parent"
+        }
+      },
+      "delete_parent": {
+        "title": "Delete a parent",
+        "data": {
+          "parent": "Parent"
+        }
+      },
+      "parent": {
+        "title": "Parent code",
+        "description": "When editing, leave the code empty to keep the current one.",
+        "data": {
+          "name": "Name",
+          "code": "Code",
+          "code_confirm": "Confirm code"
+        },
+        "data_description": {
+          "code": "A parent code gives access without quota or time limits."
+        }
+      },
+      "plug_settings": {
+        "title": "Plug settings",
+        "data": {
+          "tolerate_manual": "Tolerate turning on manually",
+          "standby_threshold": "Standby threshold",
+          "standby_delay": "Standby delay",
+          "standby_cut": "Turn the plug off on standby"
+        },
+        "data_description": {
+          "tolerate_manual": "If enabled, a plug turned on with its button or by another automation is not turned off again (the event is still sent).",
+          "standby_threshold": "Below this power, the TV is considered off with the remote.",
+          "standby_delay": "Time below the threshold before the plug is turned off.",
+          "standby_cut": "On (recommended): detected standby ends the session and turns the plug off. Off (development setting): standby is only reported, the TV stays on and the session goes on."
+        }
+      },
+      "keypad_settings": {
+        "title": "Keypad settings",
+        "description": "After too many wrong codes, the keypad is locked; a parent code or the `zapette.unblock_keypad` action unlocks it. The stop key, pressed alone (without a code), turns the TV off.",
+        "data": {
+          "lockout_failures": "Wrong codes before lockout",
+          "lockout_window": "Within",
+          "lockout_duration": "Lockout duration",
+          "off_key": "Stop key (alone, without code)"
+        },
+        "data_description": {
+          "off_key": "On the frient KEPZB-110, the padlock key is “Arm all zones”."
+        }
+      },
+      "session_settings": {
+        "title": "Session settings",
+        "description": "Warning before the TV is turned off at the end of a session, and safety limit for parent sessions (parents have no quota nor allowed hours).",
+        "data": {
+          "warning_minutes": "Warning before cut-off",
+          "warning_beep": "Keypad beep",
+          "parent_max_hours": "Maximum length of a parent session"
+        },
+        "data_description": {
+          "warning_minutes": "0 = no warning. The `zapette_session_warning` event is fired at that moment.",
+          "warning_beep": "If the keypad allows it, it beeps for a few seconds when the warning is given.",
+          "parent_max_hours": "A parent session is turned off after this duration (with a warning). 0 = never."
+        }
+      }
+    },
+    "error": {
+      "name_invalid": "The name must have 1 to 30 characters (letters, digits, spaces, - and ').",
+      "code_not_digits": "The code must contain digits only.",
+      "code_length": "The code must have 4 to 8 digits.",
+      "code_mismatch": "The two codes do not match.",
+      "code_too_simple": "Code too simple (repeated digits or sequence). Choose another one.",
+      "code_in_use": "This code is already in use. Choose another one.",
+      "last_parent_code": "The last parent code cannot be deleted.",
+      "parent_name_in_use": "A parent already has this name.",
+      "value_range": "Value out of range.",
+      "value_invalid": "Invalid value.",
+      "tv_name_in_use": "Another Zapette TV already has this name.",
+      "plug_not_found": "Choose an existing switch.",
+      "power_not_found": "Choose an existing power sensor."
+    }
+  },
+  "services": {
+    "turn_on_tv": {
+      "name": "Turn TV on",
+      "description": "Powers the TV plug (parent action).",
+      "fields": {
+        "config_entry_id": {
+          "name": "TV",
+          "description": "Zapette instance of the TV."
+        }
+      }
+    },
+    "turn_off_tv": {
+      "name": "Turn TV off",
+      "description": "Cuts the TV plug (parent action).",
+      "fields": {
+        "config_entry_id": {
+          "name": "TV",
+          "description": "Zapette instance of the TV."
+        }
+      }
+    },
+    "submit_code": {
+      "name": "Submit a code",
+      "description": "Submits a code as if typed on the keypad (same rules and lockout). Returns the decision.",
+      "fields": {
+        "config_entry_id": {
+          "name": "TV",
+          "description": "Zapette instance of the TV."
+        },
+        "code": {
+          "name": "Code",
+          "description": "Code to check (never stored)."
+        },
+        "key": {
+          "name": "Key",
+          "description": "Validation key (optional, e.g. arm_all_zones)."
+        }
+      }
+    },
+    "unblock_keypad": {
+      "name": "Unlock keypad",
+      "description": "Lifts the keypad lockout after too many wrong codes (does not turn the TV on).",
+      "fields": {
+        "config_entry_id": {
+          "name": "TV",
+          "description": "Zapette instance of the TV."
+        }
+      }
+    },
+    "start_session": {
+      "name": "Start a session",
+      "description": "Starts a session remotely for a child or a parent (turns the TV on).",
+      "fields": {
+        "config_entry_id": {
+          "name": "TV",
+          "description": "Zapette instance of the TV."
+        },
+        "profile": {
+          "name": "Profile",
+          "description": "First name of the child or name of the parent."
+        },
+        "ignore_rules": {
+          "name": "Ignore the rules",
+          "description": "Child only: no allowed-hours or quota check; the time is still counted, and the session stops at midnight and after the maximum length of a parent session."
+        }
+      }
+    },
+    "stop_session": {
+      "name": "Stop the session",
+      "description": "Ends the running session and turns the TV off.",
+      "fields": {
+        "config_entry_id": {
+          "name": "TV",
+          "description": "Zapette instance of the TV."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "control_inactive": {
+      "message": "Control is suspended: turn “Control active” back on to drive the plug."
+    },
+    "plug_unavailable": {
+      "message": "The plug is unreachable: check that it is plugged in and connected to the Zigbee network."
+    },
+    "entry_not_loaded": {
+      "message": "This Zapette instance is not loaded."
+    },
+    "profile_unknown": {
+      "message": "No child or parent has this name."
+    },
+    "tv_in_use": {
+      "message": "A session is already running: stop it first."
+    },
+    "profile_blocked": {
+      "message": "This child is disabled."
+    },
+    "outside_schedule": {
+      "message": "This child is outside their allowed hours."
+    },
+    "quota_exhausted": {
+      "message": "This child has less than one minute left today."
+    }
+  },
+  "issues": {
+    "plug_unreachable": {
+      "title": "{tv_name}: plug unreachable",
+      "description": "The plug {entity_id} has been unreachable for more than 2 minutes; Zapette considers the TV off. Check that the plug is plugged in and connected to the Zigbee network. If the plug was replaced or renamed, choose the new one with “Reconfigure” on the Zapette integration page."
+    },
+    "plug_off_failed": {
+      "title": "{tv_name}: plug cannot be turned off",
+      "description": "The plug {entity_id} has not confirmed it is off for more than 2 minutes. Zapette keeps trying every 30 seconds. Check the plug in Zigbee2MQTT."
+    },
+    "plug_missing": {
+      "title": "{tv_name}: no plug configured",
+      "description": "This Zapette instance has no TV plug yet. Choose it with “Reconfigure” on the Zapette integration page."
+    },
+    "keypad_unreachable": {
+      "title": "{tv_name}: keypad unreachable",
+      "description": "Zigbee2MQTT reports the keypad {topic} as offline. Children cannot use their code until it is back; remote actions still work. Check its battery and the Zigbee network. A battery keypad is only reported offline after a long silence (25 h by default in Zigbee2MQTT)."
+    },
+    "keypad_battery_low": {
+      "title": "{tv_name}: keypad battery low",
+      "description": "The battery of the keypad {topic} is at {battery} %. Replace it soon."
+    },
+    "standby_cut_disabled": {
+      "title": "{tv_name}: the plug is not turned off on standby",
+      "description": "Development setting: standby is detected but the TV stays on and the session goes on. Turn “Turn the plug off on standby” back on in Zapette → Configure → Plug settings."
+    }
+  }
+}

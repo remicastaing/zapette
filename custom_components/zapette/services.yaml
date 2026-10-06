@@ -1,0 +1,66 @@
+turn_on_tv:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: zapette
+
+turn_off_tv:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: zapette
+
+submit_code:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: zapette
+    code:
+      required: true
+      selector:
+        text:
+          type: password
+    key:
+      required: false
+      selector:
+        text:
+
+unblock_keypad:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: zapette
+
+start_session:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: zapette
+    profile:
+      required: true
+      example: Léa
+      selector:
+        text:
+    ignore_rules:
+      required: false
+      default: false
+      selector:
+        boolean:
+
+stop_session:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: zapette

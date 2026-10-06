@@ -1,0 +1,593 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Zapette",
+        "description": "Une instance Zapette correspond à une télévision. Le code parent donne un accès sans limite.",
+        "data": {
+          "tv_name": "Nom de la télévision",
+          "parent_name": "Nom du parent",
+          "code": "Code parent",
+          "code_confirm": "Confirmation du code"
+        }
+      },
+      "plug": {
+        "title": "Prise de la télé",
+        "description": "Choisissez la prise Zigbee qui alimente la télé (entité interrupteur exposée par Zigbee2MQTT) et, si elle en a un, son capteur de puissance.",
+        "data": {
+          "plug_entity": "Prise",
+          "power_entity": "Capteur de puissance (facultatif)"
+        },
+        "data_description": {
+          "plug_entity": "Zapette la maintient coupée sauf autorisation.",
+          "power_entity": "Sert à détecter la mise en veille de la télé à la télécommande."
+        }
+      },
+      "keypad": {
+        "title": "Clavier",
+        "description": "Choisissez le clavier Zigbee2MQTT près de la télé, ou saisissez son sujet (`zigbee2mqtt/NOM_DU_CLAVIER`). Laissez vide pour ne pas avoir de clavier : les codes peuvent toujours être transmis par l'action `zapette.submit_code`.",
+        "data": {
+          "keypad_topic": "Clavier",
+          "test_keypad": "Tester le clavier"
+        },
+        "data_description": {
+          "keypad_topic": "Seuls les appareils qui transmettent un code saisi (`action_code`) sont proposés.",
+          "test_keypad": "Tapez un code quelconque sur le clavier pour vérifier qu'il est reçu. Le code n'est ni affiché ni enregistré, et la télé ne s'allume pas."
+        }
+      },
+      "keypad_test_ok": {
+        "title": "Clavier reçu",
+        "description": "Une saisie a été reçue de {topic} (touche : {key}). Le code n'a été ni vérifié, ni affiché, ni enregistré.",
+        "menu_options": {
+          "keypad_finish": "Continuer",
+          "keypad_test": "Tester à nouveau",
+          "keypad": "Choisir un autre clavier"
+        }
+      },
+      "keypad_test_timeout": {
+        "title": "Rien reçu",
+        "description": "Aucune saisie reçue de {topic} en {seconds} s. Vérifiez le nom du clavier dans Zigbee2MQTT et qu'il est réveillé (appuyez sur une touche), puis réessayez.",
+        "menu_options": {
+          "keypad_test": "Tester à nouveau",
+          "keypad_finish": "Continuer quand même",
+          "keypad": "Choisir un autre clavier"
+        }
+      },
+      "keypad_test_no_mqtt": {
+        "title": "MQTT indisponible",
+        "description": "L'intégration MQTT n'est pas configurée ou pas connectée : impossible de tester le clavier pour l'instant.",
+        "menu_options": {
+          "keypad_test": "Tester à nouveau",
+          "keypad_finish": "Continuer quand même",
+          "keypad": "Choisir un autre clavier"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigurer {tv_name}",
+        "description": "Les enfants, les codes et les réglages sont conservés. Rien n'allume ni ne coupe la télé.",
+        "menu_options": {
+          "reconfigure_plug": "Prise et capteur de puissance",
+          "keypad": "Clavier"
+        }
+      },
+      "reconfigure_plug": {
+        "title": "Prise de {tv_name}",
+        "description": "Les enfants, les codes et les réglages sont conservés. Changer de prise ne commande aucune des deux prises.",
+        "data": {
+          "plug_entity": "Prise",
+          "power_entity": "Capteur de puissance (facultatif)"
+        }
+      }
+    },
+    "error": {
+      "name_invalid": "Le prénom doit contenir 1 à 30 caractères (lettres, chiffres, espaces, - et ').",
+      "already_configured": "Un enfant porte déjà ce prénom.",
+      "code_not_digits": "Le code ne doit contenir que des chiffres.",
+      "code_length": "Le code doit comporter entre 4 et 8 chiffres.",
+      "code_mismatch": "Les deux codes ne sont pas identiques.",
+      "code_too_simple": "Code trop simple (chiffres identiques ou suite). Choisissez‑en un autre.",
+      "code_in_use": "Ce code est déjà utilisé. Choisissez‑en un autre.",
+      "quota_range": "Le quota doit être compris entre 0 et 24 heures.",
+      "quota_step": "Le quota doit être un multiple de 5 minutes.",
+      "no_day_selected": "Sélectionnez au moins un jour.",
+      "slot_incomplete": "Indiquez le début et la fin de la plage.",
+      "slot_order": "La fin doit être après le début (00:00 = minuit).",
+      "slot_too_short": "Une plage doit durer au moins 5 minutes.",
+      "slot_overlap": "Des plages se chevauchent.",
+      "slot_conflict": "Décochez « Aucune plage » ou videz les plages.",
+      "invalid_data": "Paramétrage de cet enfant illisible.",
+      "plug_in_use": "Cette prise est déjà utilisée par une autre instance Zapette.",
+      "keypad_in_use": "Ce clavier est déjà utilisé par une autre instance Zapette.",
+      "keypad_topic_invalid": "Sujet invalide : indiquez `zigbee2mqtt/NOM_DU_CLAVIER` (sans `+`, `#` ni `/set`).",
+      "value_range": "Valeur hors limites.",
+      "value_invalid": "Valeur invalide.",
+      "tv_name_in_use": "Une autre télévision Zapette porte déjà ce nom.",
+      "plug_not_found": "Choisissez un interrupteur existant.",
+      "power_not_found": "Choisissez un capteur de puissance existant."
+    },
+    "abort": {
+      "reconfigure_successful": "Modifications enregistrées."
+    },
+    "progress": {
+      "keypad_test": "Tapez un code quelconque sur le clavier {topic} et validez (attente de {seconds} s au plus)."
+    }
+  },
+  "config_subentries": {
+    "child": {
+      "entry_type": "Enfant",
+      "initiate_flow": {
+        "user": "Ajouter un enfant",
+        "reconfigure": "Reconfigurer"
+      },
+      "step": {
+        "identity": {
+          "title": "Enfant",
+          "data": {
+            "name": "Prénom",
+            "icon": "Icône",
+            "enabled": "Actif"
+          },
+          "data_description": {
+            "enabled": "Un enfant inactif ne peut pas allumer la télé."
+          }
+        },
+        "code": {
+          "title": "Code de {name}",
+          "description": "4 à 8 chiffres. Les codes trop simples (1234, 0000…) sont refusés.",
+          "data": {
+            "code": "Code",
+            "code_confirm": "Confirmation du code"
+          }
+        },
+        "template": {
+          "title": "Règles de {name}",
+          "description": "Point de départ des quotas et plages ; modifiables ensuite via « Reconfigurer ».",
+          "data": {
+            "template": "Modèle"
+          }
+        },
+        "summary": {
+          "title": "Récapitulatif",
+          "description": "{summary}"
+        },
+        "menu": {
+          "title": "{name}",
+          "description": "{summary}",
+          "menu_options": {
+            "identity": "Prénom, icône, activation",
+            "code": "Changer le code",
+            "quota_days": "Quotas quotidiens",
+            "slot_days": "Plages d'utilisation",
+            "copy": "Copier les règles d'un autre enfant",
+            "save": "Enregistrer et quitter"
+          }
+        },
+        "quota_days": {
+          "title": "Quotas : jours à modifier",
+          "description": "{summary}",
+          "data": {
+            "days": "Jours"
+          }
+        },
+        "quota": {
+          "title": "Quota",
+          "description": "Quota pour : {days}",
+          "data": {
+            "quota": "Durée par jour",
+            "no_tv": "Pas de télé ces jours‑là"
+          }
+        },
+        "slot_days": {
+          "title": "Plages : jours à modifier",
+          "description": "{summary}",
+          "data": {
+            "days": "Jours"
+          }
+        },
+        "slots": {
+          "title": "Plages d'utilisation",
+          "description": "Plages pour : {days}. Fin à 00:00 = minuit. Laissez vide les plages inutilisées.",
+          "data": {
+            "slot_1_start": "Plage 1 – début",
+            "slot_1_end": "Plage 1 – fin",
+            "slot_2_start": "Plage 2 – début",
+            "slot_2_end": "Plage 2 – fin",
+            "slot_3_start": "Plage 3 – début",
+            "slot_3_end": "Plage 3 – fin",
+            "slot_4_start": "Plage 4 – début",
+            "slot_4_end": "Plage 4 – fin",
+            "no_slot": "Aucune plage (télé interdite ces jours‑là)"
+          }
+        },
+        "copy": {
+          "title": "Copier les règles",
+          "data": {
+            "source": "Enfant source",
+            "copy_quotas": "Copier les quotas",
+            "copy_slots": "Copier les plages"
+          }
+        }
+      },
+      "error": {
+        "name_invalid": "Le prénom doit contenir 1 à 30 caractères (lettres, chiffres, espaces, - et ').",
+        "already_configured": "Un enfant porte déjà ce prénom.",
+        "code_not_digits": "Le code ne doit contenir que des chiffres.",
+        "code_length": "Le code doit comporter entre 4 et 8 chiffres.",
+        "code_mismatch": "Les deux codes ne sont pas identiques.",
+        "code_too_simple": "Code trop simple (chiffres identiques ou suite). Choisissez‑en un autre.",
+        "code_in_use": "Ce code est déjà utilisé. Choisissez‑en un autre.",
+        "quota_range": "Le quota doit être compris entre 0 et 24 heures.",
+        "quota_step": "Le quota doit être un multiple de 5 minutes.",
+        "no_day_selected": "Sélectionnez au moins un jour.",
+        "slot_incomplete": "Indiquez le début et la fin de la plage.",
+        "slot_order": "La fin doit être après le début (00:00 = minuit).",
+        "slot_too_short": "Une plage doit durer au moins 5 minutes.",
+        "slot_overlap": "Des plages se chevauchent.",
+        "slot_conflict": "Décochez « Aucune plage » ou videz les plages.",
+        "invalid_data": "Paramétrage de cet enfant illisible."
+      },
+      "abort": {
+        "reconfigure_successful": "Modifications enregistrées.",
+        "invalid_data": "Paramétrage de cet enfant illisible."
+      }
+    }
+  },
+  "selector": {
+    "days": {
+      "options": {
+        "all": "Tous les jours",
+        "weekdays": "Du lundi au vendredi",
+        "weekend": "Samedi et dimanche",
+        "mon": "Lundi",
+        "tue": "Mardi",
+        "wed": "Mercredi",
+        "thu": "Jeudi",
+        "fri": "Vendredi",
+        "sat": "Samedi",
+        "sun": "Dimanche"
+      }
+    },
+    "template": {
+      "options": {
+        "default": "Par défaut (1 h en semaine, 2 h mercredi et week‑end)",
+        "empty": "Aucune règle"
+      }
+    },
+    "off_key": {
+      "options": {
+        "none": "Aucune",
+        "arm_all_zones": "Armer toutes les zones (cadenas)",
+        "arm_day_zones": "Armer les zones de jour",
+        "arm_night_zones": "Armer les zones de nuit",
+        "disarm": "Désarmer"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "quota_today": {
+        "name": "Quota du jour"
+      },
+      "power": {
+        "name": "Puissance"
+      },
+      "last_outage": {
+        "name": "Dernière perte de la prise"
+      },
+      "last_denied": {
+        "name": "Dernier refus",
+        "state": {
+          "locked_out": "Clavier verrouillé",
+          "invalid_code": "Code inconnu",
+          "control_inactive": "Contrôle suspendu",
+          "plug_unavailable": "Prise injoignable",
+          "profile_blocked": "Profil désactivé",
+          "outside_schedule": "Hors des plages horaires",
+          "quota_exhausted": "Quota épuisé",
+          "error": "Erreur interne",
+          "tv_in_use": "Télé déjà utilisée"
+        }
+      },
+      "last_granted": {
+        "name": "Dernier accès"
+      },
+      "keypad_battery": {
+        "name": "Pile du clavier"
+      },
+      "current_user": {
+        "name": "Utilisateur actuel",
+        "state": {
+          "none": "Aucun"
+        }
+      },
+      "planned_end": {
+        "name": "Coupure prévue"
+      },
+      "consumed_today": {
+        "name": "Temps consommé aujourd'hui"
+      },
+      "remaining_today": {
+        "name": "Temps restant aujourd'hui"
+      },
+      "next_slot": {
+        "name": "Prochaine plage autorisée"
+      }
+    },
+    "binary_sensor": {
+      "tv_powered": {
+        "name": "Télé alimentée"
+      },
+      "desired_power": {
+        "name": "Alimentation souhaitée"
+      },
+      "plug_reachable": {
+        "name": "Prise joignable"
+      },
+      "plug_problem": {
+        "name": "Problème de prise"
+      },
+      "standby": {
+        "name": "Veille"
+      },
+      "keypad_locked": {
+        "name": "Clavier verrouillé"
+      },
+      "keypad_available": {
+        "name": "Clavier joignable"
+      },
+      "session_active": {
+        "name": "Session en cours"
+      },
+      "in_session": {
+        "name": "En session"
+      },
+      "allowed_now": {
+        "name": "Autorisé maintenant"
+      }
+    },
+    "switch": {
+      "control_active": {
+        "name": "Contrôle actif"
+      }
+    },
+    "button": {
+      "turn_on_tv": {
+        "name": "Allumer la télé"
+      },
+      "turn_off_tv": {
+        "name": "Couper la télé"
+      },
+      "stop_session": {
+        "name": "Arrêter la session"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Réglages",
+        "description": "Parents enregistrés : {parents}\n\nLes modifications ne sont appliquées qu'après « Enregistrer et quitter ».",
+        "menu_options": {
+          "add_parent": "Ajouter un code parent",
+          "edit_parent": "Modifier un parent",
+          "delete_parent": "Supprimer un parent",
+          "plug_settings": "Réglages de la prise",
+          "keypad_settings": "Réglages du clavier",
+          "session_settings": "Réglages des sessions",
+          "save": "Enregistrer et quitter"
+        }
+      },
+      "edit_parent": {
+        "title": "Modifier un parent",
+        "data": {
+          "parent": "Parent"
+        }
+      },
+      "delete_parent": {
+        "title": "Supprimer un parent",
+        "data": {
+          "parent": "Parent"
+        }
+      },
+      "parent": {
+        "title": "Code parent",
+        "description": "En modification, laissez le code vide pour conserver le code actuel.",
+        "data": {
+          "name": "Nom",
+          "code": "Code",
+          "code_confirm": "Confirmation du code"
+        },
+        "data_description": {
+          "code": "Le code parent donne un accès sans limite de quota ni d'horaire."
+        }
+      },
+      "plug_settings": {
+        "title": "Réglages de la prise",
+        "data": {
+          "tolerate_manual": "Tolérer l'allumage manuel",
+          "standby_threshold": "Seuil de veille",
+          "standby_delay": "Délai de veille",
+          "standby_cut": "Couper la prise en veille"
+        },
+        "data_description": {
+          "tolerate_manual": "Si activé, une prise allumée avec son bouton ou par une autre automatisation n'est pas recoupée (l'événement est tout de même émis).",
+          "standby_threshold": "Sous cette puissance, la télé est considérée éteinte à la télécommande.",
+          "standby_delay": "Durée sous le seuil avant que la prise soit coupée.",
+          "standby_cut": "Activé (recommandé) : la veille détectée termine la session et coupe la prise. Désactivé (réglage de développement) : la veille est seulement signalée, la télé reste allumée et la session continue."
+        }
+      },
+      "keypad_settings": {
+        "title": "Réglages du clavier",
+        "description": "Après trop de codes faux, le clavier est verrouillé ; un code parent ou l'action `zapette.unblock_keypad` le déverrouille. La touche d'arrêt, appuyée seule (sans code), coupe la télé.",
+        "data": {
+          "lockout_failures": "Codes faux avant verrouillage",
+          "lockout_window": "En moins de",
+          "lockout_duration": "Durée du verrouillage",
+          "off_key": "Touche d'arrêt (seule, sans code)"
+        },
+        "data_description": {
+          "off_key": "Sur le frient KEPZB-110, la touche cadenas est « Armer toutes les zones »."
+        }
+      },
+      "session_settings": {
+        "title": "Réglages des sessions",
+        "description": "Avertissement avant que la télé soit coupée en fin de session, et durée maximale de sécurité des sessions parent (un parent n'a ni quota ni plages horaires).",
+        "data": {
+          "warning_minutes": "Avertissement avant coupure",
+          "warning_beep": "Bip du clavier",
+          "parent_max_hours": "Durée maximale d'une session parent"
+        },
+        "data_description": {
+          "warning_minutes": "0 = pas d'avertissement. L'événement `zapette_session_warning` est émis à ce moment.",
+          "warning_beep": "Si le clavier le permet, il bipe quelques secondes au moment de l'avertissement.",
+          "parent_max_hours": "Une session parent est coupée au bout de cette durée (après un avertissement). 0 = jamais."
+        }
+      }
+    },
+    "error": {
+      "name_invalid": "Le prénom doit contenir 1 à 30 caractères (lettres, chiffres, espaces, - et ').",
+      "code_not_digits": "Le code ne doit contenir que des chiffres.",
+      "code_length": "Le code doit comporter entre 4 et 8 chiffres.",
+      "code_mismatch": "Les deux codes ne sont pas identiques.",
+      "code_too_simple": "Code trop simple (chiffres identiques ou suite). Choisissez‑en un autre.",
+      "code_in_use": "Ce code est déjà utilisé. Choisissez‑en un autre.",
+      "last_parent_code": "Impossible de supprimer le dernier code parent.",
+      "parent_name_in_use": "Un parent porte déjà ce nom.",
+      "value_range": "Valeur hors limites.",
+      "value_invalid": "Valeur invalide.",
+      "tv_name_in_use": "Une autre télévision Zapette porte déjà ce nom.",
+      "plug_not_found": "Choisissez un interrupteur existant.",
+      "power_not_found": "Choisissez un capteur de puissance existant."
+    }
+  },
+  "services": {
+    "turn_on_tv": {
+      "name": "Allumer la télé",
+      "description": "Alimente la prise de la télé (action parent).",
+      "fields": {
+        "config_entry_id": {
+          "name": "Télévision",
+          "description": "Instance Zapette de la télévision."
+        }
+      }
+    },
+    "turn_off_tv": {
+      "name": "Couper la télé",
+      "description": "Coupe la prise de la télé (action parent).",
+      "fields": {
+        "config_entry_id": {
+          "name": "Télévision",
+          "description": "Instance Zapette de la télévision."
+        }
+      }
+    },
+    "submit_code": {
+      "name": "Saisir un code",
+      "description": "Transmet un code comme s'il était tapé au clavier (mêmes règles, même anti-essais). Renvoie la décision.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Télévision",
+          "description": "Instance Zapette de la télévision."
+        },
+        "code": {
+          "name": "Code",
+          "description": "Code à vérifier (jamais enregistré)."
+        },
+        "key": {
+          "name": "Touche",
+          "description": "Touche de validation (facultatif, par ex. arm_all_zones)."
+        }
+      }
+    },
+    "unblock_keypad": {
+      "name": "Déverrouiller le clavier",
+      "description": "Lève le verrouillage du clavier après trop de codes faux (n'allume pas la télé).",
+      "fields": {
+        "config_entry_id": {
+          "name": "Télévision",
+          "description": "Instance Zapette de la télévision."
+        }
+      }
+    },
+    "start_session": {
+      "name": "Démarrer une session",
+      "description": "Démarre une session à distance pour un enfant ou un parent (allume la télé).",
+      "fields": {
+        "config_entry_id": {
+          "name": "Télévision",
+          "description": "Instance Zapette de la télévision."
+        },
+        "profile": {
+          "name": "Profil",
+          "description": "Prénom de l'enfant ou nom du parent."
+        },
+        "ignore_rules": {
+          "name": "Ignorer les règles",
+          "description": "Enfant seulement : ni plages ni quota vérifiés ; le temps est quand même décompté, et la session s'arrête à minuit et au bout de la durée maximale d'une session parent."
+        }
+      }
+    },
+    "stop_session": {
+      "name": "Arrêter la session",
+      "description": "Termine la session en cours et coupe la télé.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Télévision",
+          "description": "Instance Zapette de la télévision."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "control_inactive": {
+      "message": "Le contrôle est suspendu : réactivez « Contrôle actif » pour piloter la prise."
+    },
+    "plug_unavailable": {
+      "message": "La prise est injoignable : vérifiez qu'elle est branchée et connectée au réseau Zigbee."
+    },
+    "entry_not_loaded": {
+      "message": "Cette instance Zapette n'est pas chargée."
+    },
+    "profile_unknown": {
+      "message": "Aucun enfant ni parent ne porte ce nom."
+    },
+    "tv_in_use": {
+      "message": "Une session est déjà en cours : arrêtez-la d'abord."
+    },
+    "profile_blocked": {
+      "message": "Cet enfant est désactivé."
+    },
+    "outside_schedule": {
+      "message": "Cet enfant est hors de ses plages horaires."
+    },
+    "quota_exhausted": {
+      "message": "Il reste moins d'une minute à cet enfant aujourd'hui."
+    }
+  },
+  "issues": {
+    "plug_unreachable": {
+      "title": "{tv_name} : prise injoignable",
+      "description": "La prise {entity_id} est injoignable depuis plus de 2 minutes ; Zapette considère la télé coupée. Vérifiez qu'elle est branchée et connectée au réseau Zigbee. Si la prise a été remplacée ou renommée, choisissez la nouvelle avec « Reconfigurer » sur la page de l'intégration Zapette."
+    },
+    "plug_off_failed": {
+      "title": "{tv_name} : impossible de couper la prise",
+      "description": "La prise {entity_id} ne confirme pas sa coupure depuis plus de 2 minutes. Zapette réessaie toutes les 30 secondes. Vérifiez la prise dans Zigbee2MQTT."
+    },
+    "plug_missing": {
+      "title": "{tv_name} : aucune prise configurée",
+      "description": "Cette instance Zapette n'a pas encore de prise. Choisissez-la avec « Reconfigurer » sur la page de l'intégration Zapette."
+    },
+    "keypad_unreachable": {
+      "title": "{tv_name} : clavier injoignable",
+      "description": "Zigbee2MQTT signale le clavier {topic} hors ligne. Les enfants ne peuvent plus saisir leur code jusqu'à son retour ; les actions à distance restent possibles. Vérifiez sa pile et le réseau Zigbee. Un clavier sur pile n'est déclaré hors ligne qu'après un long silence (25 h par défaut dans Zigbee2MQTT)."
+    },
+    "keypad_battery_low": {
+      "title": "{tv_name} : pile du clavier faible",
+      "description": "La pile du clavier {topic} est à {battery} %. Pensez à la remplacer."
+    },
+    "standby_cut_disabled": {
+      "title": "{tv_name} : la prise n'est pas coupée en veille",
+      "description": "Réglage de développement : la veille est détectée mais la télé reste allumée et la session continue. Réactivez « Couper la prise en veille » dans Zapette → Configurer → Réglages de la prise."
+    }
+  }
+}
